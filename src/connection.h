@@ -16,6 +16,7 @@ public:
     ~connection();
 
     std::function<void(web_request&, web_response&)> done_reading_function;
+    bool close_me = false;
 
 protected:
     asio::io_context& _io_context;
@@ -41,6 +42,8 @@ inline connection::connection(asio::io_context& io_context, asio::ip::tcp::socke
 inline connection::~connection()
 {
     _socket_buffer.consume(_socket_buffer.size());
+    if (_socket.is_open())
+        _socket.close();
 }
 
 inline void connection::read_header()
@@ -60,7 +63,7 @@ inline void connection::read_header()
 
                     web_request request_header{};
                     header_helper(header, request_header);
-                    std::cout << request_header;
+                    //std::cout << request_header;
 
                     size_t length = 0;
                     if (request_header.header_values.find("Content-Length") != request_header.header_values.end())
@@ -78,11 +81,15 @@ inline void connection::read_header()
                         [&](std::error_code ec, std::size_t bytes_written)
                         {
                             if (!ec)
-                                std::cout << "[connection] replied to client" << std::endl;
+                            {
+                                //std::cout << "[connection] replied to client" << std::endl;
+                                
+                            }
                             else
                                 std::cerr << "[connection] Error while replying: " << ec.message() << std::endl;
 
                             _socket.close();
+                            close_me = true;
                         });
                 }   
             }
@@ -90,7 +97,6 @@ inline void connection::read_header()
             {
                 std::cerr << "[connection] Error: " << ec.message() << std::endl;
                 _socket.close();
-                return;
             }
         });
 }
@@ -103,7 +109,7 @@ inline void connection::read_body(const size_t& body_length, web_request& reques
             asio::buffer_cast<const char*>(_socket_buffer.data()),
             body_length);
 
-        std::cout << "[connection] body: " << body << std::endl;
+        //std::cout << "[connection] body: " << body << std::endl;
 
         request_header.body = body;
     }
