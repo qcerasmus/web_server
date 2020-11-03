@@ -27,7 +27,7 @@ protected:
 
 private:
     std::string _ip_address;
-    short _port;
+    unsigned short _port;
     bool _shutdown = false;
 
     asio::io_context _io_context;
@@ -39,6 +39,7 @@ private:
     std::map<METHODS, std::vector<std::pair<std::string, std::function<void(const web_request&, web_response&)>>>> _functions;
     std::chrono::high_resolution_clock::time_point _start_time;
     std::thread _delete_connections_thread;
+    std::mutex _connection_mutex;
 };
 
 inline web_server::web_server(const std::string& ip_address, const short port)
@@ -65,8 +66,10 @@ inline web_server::web_server(const std::string& ip_address, const short port)
 
 inline web_server::~web_server()
 {
-    _connections.clear();
     stop();
+    _connections.clear();
+    if (_delete_connections_thread.joinable())
+        _delete_connections_thread.join();
 }
 
 inline bool web_server::start()
@@ -83,9 +86,12 @@ inline bool web_server::start()
                     {
                         if (!_connections.empty())
                         {
+                            std::lock_guard<std::mutex> guard(_connection_mutex);
                             _connections.erase(std::remove_if(_connections.begin(), _connections.end(), [](const std::shared_ptr<connection>& connection)
                                 {
-                                    return connection->close_me;
+                                    if (connection)
+                                        return connection->close_me;
+                                    return false;
                                 }), _connections.end());
                         }
                     }
@@ -162,6 +168,7 @@ inline void web_server::wait_for_client()
                     const auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - _start_time);
                     //std::cout << "It took: " << duration.count() << " us\n";
                 };
+                std::lock_guard<std::mutex> guard(_connection_mutex);
                 _connections.emplace_back(new_connection);
                 wait_for_client();
             }

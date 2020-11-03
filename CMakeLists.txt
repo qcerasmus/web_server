@@ -15,6 +15,8 @@ include_directories(include)
 include_directories(include/asio)
 include_directories(src)
 
+add_subdirectory(performance_tester)
+
 file(GLOB web_server_headers
     src/*.h)
 

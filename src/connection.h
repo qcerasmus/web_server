@@ -41,6 +41,8 @@ inline connection::connection(asio::io_context& io_context, asio::ip::tcp::socke
 
 inline connection::~connection()
 {
+    while (!close_me)
+        std::this_thread::sleep_for(std::chrono::nanoseconds(10));
     _socket_buffer.consume(_socket_buffer.size());
     if (_socket.is_open())
         _socket.close();
