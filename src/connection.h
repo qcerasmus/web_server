@@ -5,17 +5,32 @@
 #include "structs/request.h"
 #include "structs/response.h"
 
+/**
+ * \brief This class is responsible for reading and writing to the socket.
+ */
 class connection : public std::enable_shared_from_this<connection>
 {
 public:
+    /**
+     * \brief This class moves the socket locally and is responsible to read and write to it.
+     * \param io_context the asio context by reference
+     * \param socket the socket is moved to this class
+     */
     connection(asio::io_context& io_context, asio::ip::tcp::socket socket);
     connection(const connection& c) = delete;
     connection(const connection&& c) = delete;
     connection& operator=(const connection& other) = delete;
     connection& operator=(const connection&& other) = delete;
-    ~connection();
+    ~connection() = default;
 
+    /**
+     * \brief After the request has been read, we call this function which is set by the web_server class.
+     * This is to allow the server to call a function set by the end user.
+     */
     std::function<void(web_request&, web_response&)> done_reading_function;
+    /**
+     * \brief This will be set to true so that the connection can be deleted from the web_server class.
+     */
     bool close_me = false;
 
 protected:
@@ -23,9 +38,23 @@ protected:
     asio::ip::tcp::socket _socket;
 
 private:
+    /**
+     * \brief This is the first function that is called to get the request header.
+     * It happens directly after a connection is established.
+     */
     void read_header();
+    /**
+     * \brief Adds the body to the web_request object.
+     * \param body_length The length of the body
+     * \param request_header The web_request object by reference to set the body
+     */
     void read_body(const std::size_t& body_length, web_request& request_header) const;
 
+    /**
+     * \brief Sets the header content that was sent.
+     * \param header The string of headers that was sent from the client.
+     * \param request_header The web_request object has a vector of headers that are set here.
+     */
     static void header_helper(std::string& header, web_request& request_header);
 
     asio::streambuf _socket_buffer;
@@ -39,24 +68,15 @@ inline connection::connection(asio::io_context& io_context, asio::ip::tcp::socke
     read_header();
 }
 
-inline connection::~connection()
-{
-    while (!close_me)
-        std::this_thread::sleep_for(std::chrono::nanoseconds(10));
-    _socket_buffer.consume(_socket_buffer.size());
-    if (_socket.is_open())
-        _socket.close();
-}
-
 inline void connection::read_header()
 {
     asio::async_read_until(_socket, _socket_buffer, "\r\n\r\n",
-        [&](std::error_code ec, std::size_t length_read)
+        [&](const std::error_code ec, const std::size_t length_read)
         {
             //We have read some data.
             if (!ec)
             {
-                if (length_read >= 0)
+                if (length_read != 0)
                 {
                     auto header = std::string(
                         asio::buffer_cast<const char*>(_socket_buffer.data()),
@@ -65,7 +85,6 @@ inline void connection::read_header()
 
                     web_request request_header{};
                     header_helper(header, request_header);
-                    //std::cout << request_header;
 
                     std::size_t length = 0;
                     if (request_header.header_values.find("Content-Length") != request_header.header_values.end())
@@ -77,17 +96,13 @@ inline void connection::read_header()
                     web_response response;
                     response.protocol = request_header.protocol;
                     response.version = request_header.version;
+                    response.host = request_header.header_values["Host"];
                     done_reading_function(request_header, response);
                     _response_string = response.to_string();
                     asio::async_write(_socket, asio::buffer(_response_string, _response_string.length()),
-                        [&](std::error_code ec, std::size_t bytes_written)
+                        [&](const std::error_code ec_write, const std::size_t bytes_written)
                         {
-                            if (!ec)
-                            {
-                                //std::cout << "[connection] replied to client" << std::endl;
-                                
-                            }
-                            else
+                            if (ec_write || bytes_written != _response_string.length())
                                 std::cerr << "[connection] Error while replying: " << ec.message() << std::endl;
 
                             _socket.close();
@@ -98,8 +113,8 @@ inline void connection::read_header()
             else
             {
                 std::cerr << "[connection] Error: " << ec.message() << std::endl;
-                close_me = true;
                 _socket.close();
+                close_me = true;
             }
         });
 }
@@ -111,8 +126,6 @@ inline void connection::read_body(const std::size_t& body_length, web_request& r
         const auto body = std::string(
             asio::buffer_cast<const char*>(_socket_buffer.data()),
             body_length);
-
-        //std::cout << "[connection] body: " << body << std::endl;
 
         request_header.body = body;
     }

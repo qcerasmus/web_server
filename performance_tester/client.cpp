@@ -20,11 +20,6 @@ client::client(const std::string& ip_address, unsigned short port)
         std::this_thread::sleep_for(std::chrono::nanoseconds(10));
 }
 
-client::~client()
-{
-
-}
-
 void client::write_header()
 {
     asio::async_write(*_socket, asio::buffer(_request), [&](const std::error_code& ec, const std::size_t length)

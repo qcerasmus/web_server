@@ -7,48 +7,100 @@
 #include <algorithm>
 
 #include <asio.hpp>
-#include <asio/ts/buffer.hpp>
 #include <asio/ts/internet.hpp>
 
 #include "connection.h"
 
+/**
+ * \brief This is the main class someone should use.
+ * NB! Remember to call the stop() function or you will not exit cleanly.
+ */
 class web_server
 {
 public:
-    explicit web_server(const std::string& ip_address, const short port);
-    ~web_server();
+    /**
+     * \brief Constructor
+     * This will set up some asio stuff for the tcp-layer.
+     * \param ip_address to listen on.
+     * \param port to listen on.
+     */
+    explicit web_server(std::string_view ip_address, short port = 80);
+    web_server(const web_server& other) = delete;
+    web_server(const web_server&& other) = delete;
+    web_server& operator=(const web_server& other) = delete;
+    web_server& operator=(const web_server&& other) = delete;
+    ~web_server() = default;
 
+    /**
+     * \brief Calls the wait_for_client function.
+     * Starts the context thread.
+     * Starts a thread to delete stale connections.
+     * \return true if the server started.
+     */
     bool start();
+    /**
+     * \brief Registers a new endpoint that clients can connect to.
+     * \param method Which HTTP Action to listen on.
+     * \param url The url the client must hit to call this method.
+     * \param function A lambda that will be called once the METHOD and url is hit.
+     */
     void register_function(METHODS method, const std::string& url, const std::function<void(const web_request&, web_response&)>& function);
+    /**
+     * \brief Stops the io_context thread
+     */
     void stop();
 
 protected:
+    /**
+     * \brief Waits for clients to connect.
+     * When a client connects, we create a connection object and add it to the _connections vector.
+     */
     void wait_for_client();
 
 private:
+    /**
+     * \brief The IpAddress the server is listening on.
+     */
     std::string _ip_address;
+    /**
+     * \brief The port the server is listening on.
+     */
     unsigned short _port;
+    /**
+     * \brief Whether or not the server should shut down.
+     */
     bool _shutdown = false;
 
     asio::io_context _io_context;
     asio::ip::tcp::endpoint _endpoint;
     std::unique_ptr<asio::ip::tcp::acceptor> _acceptor;
     std::thread _context_thread;
+    /**
+     * \brief A list of active connections
+     */
     std::vector<std::shared_ptr<connection>> _connections;
 
+    /**
+     * \brief The list of active end points a client can connect to.
+     */
     std::map<METHODS, std::vector<std::pair<std::string, std::function<void(const web_request&, web_response&)>>>> _functions;
-    std::chrono::high_resolution_clock::time_point _start_time;
+    /**
+     * \brief A thread that deletes stale connections from the list.
+     */
     std::thread _delete_connections_thread;
+    /**
+     * \brief The list is changed in a thread so we have to be thread safe.
+     */
     std::mutex _connection_mutex;
 };
 
-inline web_server::web_server(const std::string& ip_address, const short port)
+inline web_server::web_server(const std::string_view ip_address, const short port)
     : _ip_address(ip_address),
     _port(port)
 {
     try
     {
-        _endpoint = asio::ip::tcp::endpoint(asio::ip::make_address(_ip_address), port);
+        _endpoint = asio::ip::tcp::endpoint(asio::ip::make_address(_ip_address), _port);
         _acceptor = std::make_unique<asio::ip::tcp::acceptor>(_io_context, _endpoint);
         const auto option = asio::socket_base::reuse_address(true);
         std::error_code ec;
@@ -62,14 +114,6 @@ inline web_server::web_server(const std::string& ip_address, const short port)
     {
         std::cerr << "[web_server] Error: " << e.what() << std::endl;
     }
-}
-
-inline web_server::~web_server()
-{
-    stop();
-    _connections.clear();
-    if (_delete_connections_thread.joinable())
-        _delete_connections_thread.join();
 }
 
 inline bool web_server::start()
@@ -125,48 +169,34 @@ inline void web_server::stop()
     _io_context.stop();
     if (_context_thread.joinable())
         _context_thread.join();
+    _connections.clear();
+    if (_delete_connections_thread.joinable())
+        _delete_connections_thread.join();
 
     std::cout << "[web_server] Stopped..." << std::endl;
 }
 
 inline void web_server::wait_for_client()
 {
-    _acceptor->async_accept([&](std::error_code ec, asio::ip::tcp::socket socket)
+    _acceptor->async_accept([&](const std::error_code ec, asio::ip::tcp::socket socket)
         {
             socket.set_option(asio::socket_base::reuse_address(true));
             if (!ec)
             {
-                _start_time = std::chrono::high_resolution_clock::now();
-                //std::cout << "[web_server] someone connected: " << socket.remote_endpoint() << std::endl;
                 auto new_connection = std::make_shared<connection>(_io_context, std::move(socket));
                 new_connection->done_reading_function = [&](const web_request& request, web_response& response)
                 {
                     if (_functions.find(request.method) != _functions.end())
                     {
-                        auto found = false;
                         for (const auto& [url, function] : _functions[request.method])
                         {
                             if (request.url == url)
                             {
-                                found = true;
                                 function(request, response);
                                 break;
                             }
                         }
-                        if (!found)
-                        {
-                            response.status_code = 404;
-                            response.status = "NOT FOUND";
-                        }
                     }
-                    else
-                    {
-                        response.status_code = 404;
-                        response.status = "NOT FOUND";
-                    }
-                    const auto end_time = std::chrono::high_resolution_clock::now();
-                    const auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - _start_time);
-                    //std::cout << "It took: " << duration.count() << " us\n";
                 };
                 std::lock_guard<std::mutex> guard(_connection_mutex);
                 _connections.emplace_back(new_connection);

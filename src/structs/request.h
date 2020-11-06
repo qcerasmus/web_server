@@ -6,19 +6,9 @@
 
 #include "src/enums/method.h"
 
-/*
- POST / HTTP/1.1
-Content-Type: application/javascript
-User-Agent: PostmanRuntime/7.26.5
-Accept: 
-Cache-Control: no - cache
-Postman-Token: 697f6e75-406f-4ab2-8270-b54276990603
-Host: localhost
-Accept-Encoding: gzip, deflate, br
-Connection: keep-alive
-Content-Length : 25
+/**
+ * \brief This struct will contain everything that was sent in the request.
  */
-
 struct web_request
 {
     METHODS method;

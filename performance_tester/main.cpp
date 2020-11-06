@@ -44,7 +44,7 @@ int main()
                 while (!SHUTDOWN)
                 {
                     const auto start_time = std::chrono::high_resolution_clock::now();
-                    client c("127.0.0.1", 80);
+                    client c("127.0.0.1");
                     times_.push_back(std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - start_time).count());
                 }
             });
