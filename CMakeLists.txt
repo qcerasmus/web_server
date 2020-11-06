@@ -21,3 +21,7 @@ file(GLOB web_server_headers
     src/*.h)
 
 add_executable(web_server main.cpp ${web_server_headers} ${handler_source})
+
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+find_package(Threads REQUIRED)
+target_link_libraries(web_server Threads::Threads)
