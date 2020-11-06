@@ -98,6 +98,7 @@ inline void connection::read_header()
             else
             {
                 std::cerr << "[connection] Error: " << ec.message() << std::endl;
+                close_me = true;
                 _socket.close();
             }
         });
