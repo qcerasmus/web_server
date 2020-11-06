@@ -24,9 +24,9 @@ protected:
 
 private:
     void read_header();
-    void read_body(const size_t& body_length, web_request& request_header);
+    void read_body(const std::size_t& body_length, web_request& request_header) const;
 
-    void header_helper(std::string& header, web_request& request_header);
+    static void header_helper(std::string& header, web_request& request_header);
 
     asio::streambuf _socket_buffer;
     std::string _response_string;
@@ -67,7 +67,7 @@ inline void connection::read_header()
                     header_helper(header, request_header);
                     //std::cout << request_header;
 
-                    size_t length = 0;
+                    std::size_t length = 0;
                     if (request_header.header_values.find("Content-Length") != request_header.header_values.end())
                     {
                         length = std::stol(request_header.header_values["Content-Length"]);
@@ -104,7 +104,7 @@ inline void connection::read_header()
         });
 }
 
-inline void connection::read_body(const size_t& body_length, web_request& request_header)
+inline void connection::read_body(const std::size_t& body_length, web_request& request_header) const
 {
     if (body_length > 0)
     {

@@ -17,7 +17,6 @@ int main()
         ws.start();
         ws.register_function(METHODS::GET, "/", [&](const web_request& request_header, web_response& response)
             {
-                std::cout << "FROM LAMBDA: " << request_header.url << std::endl;
                 response.status_code = 200;
                 response.status = "OK";
                 response.host = "localhost";

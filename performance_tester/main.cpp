@@ -19,10 +19,10 @@ void print_average_times_for_last_second()
 {
     while (!SHUTDOWN)
     {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
         const auto sum = std::accumulate(times_.begin(), times_.end(), 0);
         std::cout << "In the last second we have received " << times_.size() << " responses with an average of: " << static_cast<double>(sum) / static_cast<double>(times_.size()) << " microseconds\n";
         times_.clear();
-        std::this_thread::sleep_for(std::chrono::seconds(1));
     }
 }
 
