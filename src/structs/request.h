@@ -4,7 +4,7 @@
 #include <string>
 #include <iostream>
 
-#include "src/enums/method.h"
+#include "../enums/method.h"
 
 /**
  * \brief This struct will contain everything that was sent in the request.
