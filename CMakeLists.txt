@@ -1,4 +1,13 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.17)
+
+#Download asio
+include(FetchContent)
+FetchContent_Populate(
+  asio
+  GIT_REPOSITORY        https://github.com/chriskohlhoff/asio.git
+  GIT_TAG   asio-1-18-0
+  SOURCE_DIR ${CMAKE_SOURCE_DIR}/third_party/asio
+)
 
 add_definitions(-DASIO_STANDALONE)
 
@@ -10,8 +19,6 @@ project(web_server)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
-add_subdirectory(third_party)
 
 include_directories(third_party)
 include_directories(third_party/asio/asio/include)
