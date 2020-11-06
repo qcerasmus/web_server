@@ -1,6 +1,6 @@
 #pragma once
 
-#include <asio/asio.hpp>
+#include <asio.hpp>
 
 /**
  * \brief A simple client class to do requests to the root of a server.
