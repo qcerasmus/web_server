@@ -1,5 +1,7 @@
 #include <iostream>
 
+#define OPEN_SSL
+
 #include "web_server.h"
 
 /**
@@ -7,7 +9,7 @@
  */
 void keep_running()
 {
-    auto key = std::getchar();
+    std::getchar();
 }
 
 int main()
@@ -17,7 +19,7 @@ int main()
         std::cout << "[main] - Starting web server now\n";
 
         //Create a web_server which will listen on port 80 on the localhost.
-        web_server ws("127.0.0.1");
+        web_server ws("127.0.0.1", 4445, "cert.pem", "key.pem");
         //We can start it immediately.
         ws.start();
         //We can add endpoints at runtime (which some libraries can't do)

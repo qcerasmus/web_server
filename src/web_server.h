@@ -24,7 +24,7 @@ public:
      * \param ip_address to listen on.
      * \param port to listen on.
      */
-    explicit web_server(std::string_view ip_address, short port = 80);
+    explicit web_server(std::string_view ip_address, short port = 80, std::string_view certificate_file = "", std::string_view key_file = "");
     web_server(const web_server& other) = delete;
     web_server(const web_server&& other) = delete;
     web_server& operator=(const web_server& other) = delete;
@@ -71,7 +71,13 @@ private:
      */
     bool _shutdown = false;
 
-    asio::io_context _io_context;
+    std::string _certificate_file;
+    std::string _key_file;
+
+#ifdef OPEN_SSL
+    asio::ssl::context _io_context;
+#endif
+    asio::io_context _basic_context;
     asio::ip::tcp::endpoint _endpoint;
     std::unique_ptr<asio::ip::tcp::acceptor> _acceptor;
     std::thread _context_thread;
@@ -94,14 +100,26 @@ private:
     std::mutex _connection_mutex;
 };
 
-inline web_server::web_server(const std::string_view ip_address, const short port)
+inline web_server::web_server(const std::string_view ip_address, const short port, const std::string_view certificate_file, const std::string_view key_file)
     : _ip_address(ip_address),
-    _port(port)
+    _port(port),
+#ifdef OPEN_SSL
+    _io_context(asio::ssl::context::sslv23),
+#endif
+    _certificate_file(certificate_file),
+    _key_file(key_file)
 {
     try
     {
+#ifdef OPEN_SSL
+        _io_context.set_options(
+            asio::ssl::context::default_workarounds
+            | asio::ssl::context::no_sslv2);
+        _io_context.use_certificate_chain_file(_certificate_file);
+        _io_context.use_private_key_file(_key_file, asio::ssl::context::pem);
+#endif
         _endpoint = asio::ip::tcp::endpoint(asio::ip::make_address(_ip_address), _port);
-        _acceptor = std::make_unique<asio::ip::tcp::acceptor>(_io_context, _endpoint);
+        _acceptor = std::make_unique<asio::ip::tcp::acceptor>(_basic_context, _endpoint);
         const auto option = asio::socket_base::reuse_address(true);
         std::error_code ec;
         _acceptor->set_option(option, ec);
@@ -121,7 +139,21 @@ inline bool web_server::start()
     try
     {
         wait_for_client();
-        _context_thread = std::thread([&]() { _io_context.run(); });
+        _context_thread = std::thread([&]()
+        {
+            try
+            {
+                _basic_context.run();
+            }
+            catch (const asio::error_code& e)
+            {
+                std::cout << "Error: " << e.message() << std::endl;
+            }
+            catch (const std::exception& e)
+            {
+                std::cout << "Error: " << e.what() << std::endl;
+            }
+        });
         _delete_connections_thread = std::thread([&]()
             {
                 while (!_shutdown)
@@ -166,7 +198,7 @@ inline void web_server::register_function(const METHODS method, const std::strin
 inline void web_server::stop()
 {
     _shutdown = true;
-    _io_context.stop();
+    _basic_context.stop();
     if (_context_thread.joinable())
         _context_thread.join();
     _connections.clear();
@@ -183,7 +215,11 @@ inline void web_server::wait_for_client()
             socket.set_option(asio::socket_base::reuse_address(true));
             if (!ec)
             {
-                auto new_connection = std::make_shared<connection>(_io_context, std::move(socket));
+#ifdef OPEN_SSL
+                auto new_connection = std::make_shared<connection>(asio::ssl::stream<asio::ip::tcp::socket>(std::move(socket), _io_context));
+#else
+                auto new_connection = std::make_shared<connection>(std::move(socket));
+#endif
                 new_connection->done_reading_function = [&](const web_request& request, web_response& response)
                 {
                     if (_functions.find(request.method) != _functions.end())

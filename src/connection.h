@@ -1,6 +1,9 @@
 #pragma once
 
 #include <asio.hpp>
+#ifdef OPEN_SSL
+#include <asio/ssl.hpp>
+#endif
 
 #include "structs/request.h"
 #include "structs/response.h"
@@ -13,10 +16,14 @@ class connection : public std::enable_shared_from_this<connection>
 public:
     /**
      * \brief This class moves the socket locally and is responsible to read and write to it.
-     * \param io_context the asio context by reference
      * \param socket the socket is moved to this class
      */
-    connection(asio::io_context& io_context, asio::ip::tcp::socket socket);
+#ifdef OPEN_SSL
+    connection(asio::ssl::stream<asio::ip::tcp::socket> socket);
+#else
+    connection(asio::ip::tcp::socket socket);
+#endif
+    
     connection(const connection& c) = delete;
     connection(const connection&& c) = delete;
     connection& operator=(const connection& other) = delete;
@@ -34,8 +41,11 @@ public:
     bool close_me = false;
 
 protected:
-    asio::io_context& _io_context;
+#ifdef OPEN_SSL
+    asio::ssl::stream<asio::ip::tcp::socket> _socket;
+#else
     asio::ip::tcp::socket _socket;
+#endif
 
 private:
     /**
@@ -56,21 +66,32 @@ private:
      * \param request_header The web_request object has a vector of headers that are set here.
      */
     static void header_helper(std::string& header, web_request& request_header);
+#ifdef OPEN_SSL
+    void do_handshake();
+    void ssl_shutdown(const asio::error_code& ec);
+#endif
 
     asio::streambuf _socket_buffer;
     std::string _response_string;
 };
 
-inline connection::connection(asio::io_context& io_context, asio::ip::tcp::socket socket)
-    : _io_context(io_context),
-    _socket(std::move(socket))
+#ifdef OPEN_SSL
+inline connection::connection(asio::ssl::stream<asio::ip::tcp::socket> socket)
+    : _socket(std::move(socket))
+{
+    do_handshake();
+}
+#else
+inline connection::connection(asio::ip::tcp::socket socket)
+    : _socket(std::move(socket))
 {
     read_header();
 }
+#endif
 
 inline void connection::read_header()
 {
-    asio::async_read_until(_socket, _socket_buffer, "\r\n\r\n",
+    async_read_until(_socket, _socket_buffer, "\r\n\r\n",
         [&](const std::error_code ec, const std::size_t length_read)
         {
             //We have read some data.
@@ -104,8 +125,12 @@ inline void connection::read_header()
                         {
                             if (ec_write || bytes_written != _response_string.length())
                                 std::cerr << "[connection] Error while replying: " << ec.message() << std::endl;
-
+#ifdef OPEN_SSL
+                            _socket.lowest_layer().cancel();
+                            _socket.async_shutdown(std::bind(&connection::ssl_shutdown, this->shared_from_this(), std::placeholders::_1));
+#else
                             _socket.close();
+#endif
                             close_me = true;
                         });
                 }   
@@ -113,7 +138,12 @@ inline void connection::read_header()
             else
             {
                 std::cerr << "[connection] Error: " << ec.message() << std::endl;
+#ifdef OPEN_SSL
+                _socket.lowest_layer().cancel();
+                _socket.async_shutdown(std::bind(&connection::ssl_shutdown, this->shared_from_this(), std::placeholders::_1));
+#else
                 _socket.close();
+#endif
                 close_me = true;
             }
         });
@@ -169,3 +199,32 @@ inline void connection::header_helper(std::string& header, web_request& request_
     }
 }
 
+#ifdef OPEN_SSL
+inline void connection::do_handshake()
+{
+    _socket.async_handshake(asio::ssl::stream_base::server,
+        [this](const asio::error_code& error)
+        {
+            if (!error)
+            {
+                read_header();
+            }
+            else
+            {
+                std::cerr << "[connection] Error: " << error.message() << std::endl;
+            }
+        });
+}
+
+inline void connection::ssl_shutdown(const asio::error_code& ec)
+{
+    if (ec && ec != asio::error::eof)
+        std::cout << ec.message() << std::endl;
+
+    asio::error_code ec2;
+    _socket.lowest_layer().close(ec2);
+    if (ec2)
+        std::cout << ec2.message() << std::endl;
+    
+}
+#endif

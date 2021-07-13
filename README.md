@@ -1,12 +1,17 @@
 web_server
 ==========
-Is a header-only web_server that does not yet support HTTPS.
+Is a header-only web_server that does now support HTTPS.
 The reason I created this is to be able to add endpoints at runtime.
 
 usage
 -----
 This project uses cmake and asio. Asio will be downloaded on the first build.
 You only have to include the "src" folder to use this project, provided you have asio already downloaded.
+
+openssl
+-------
+CMake will try to find openssl automatically. If it is found you can define OPEN_SSL BEFORE you include web_server.
+This will then run an HTTPS socket on the endpoint you specified
 
 asio
 ----
