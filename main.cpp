@@ -1,6 +1,6 @@
 #include <iostream>
 
-#define OPEN_SSL
+//#define OPEN_SSL
 
 #include "web_server.h"
 
