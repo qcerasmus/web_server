@@ -8,15 +8,11 @@ usage
 This project uses cmake and asio. Asio will be downloaded on the first build.
 You only have to include the "src" folder to use this project, provided you have asio already downloaded.
 
-openssl
--------
-CMake will try to find openssl automatically. If it is found you can define OPEN_SSL BEFORE you include web_server.
-This will then run an HTTPS socket on the endpoint you specified
+dependencies
+------------
+OpenSSL - CMake will try to find OpenSSL. If it is found, HTTPS is supported by defining OPEN__SSL BEFORE you include web_server.h
 
-asio
-----
-Be sure to set the flag for asio to build as stand-alone.
-This can be achieved with the "add_definitions(-DASIO_STANDALONE)" cmake command.
+asio - This will be downloaded and included in the first build.
 
 performance_tester
 ------------------
@@ -27,6 +23,7 @@ The time it takes from connection to disconnection is added to a vector
 performance
 -----------
 There is a performance_tester folder which will build a a client to test performance.
+
 I've run the performance_tester on a pc with the following specs:
 - AMD Ryzen 9 3900X
 - 32 GB RAM
