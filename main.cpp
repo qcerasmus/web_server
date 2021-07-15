@@ -1,6 +1,6 @@
 #include <iostream>
 
-//#define OPEN_SSL
+#define OPEN_SSL
 
 #include "web_server.h"
 
@@ -44,7 +44,7 @@ int main()
         //This is a POST example where we reply with some JSON.
         ws.register_function(METHODS::POST, "/api/post_test", [&](const web_request& request_header, web_response& response)
             {
-                std::cout << request_header.body << std::endl;
+                //std::cout << request_header.body << std::endl;
                 response.status_code = 200;
                 response.status = "OK";
                 response.host = "localhost";

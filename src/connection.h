@@ -53,12 +53,11 @@ private:
      * It happens directly after a connection is established.
      */
     void read_header();
+
     /**
      * \brief Adds the body to the web_request object.
-     * \param body_length The length of the body
-     * \param request_header The web_request object by reference to set the body
      */
-    void read_body(const std::size_t& body_length, web_request& request_header) const;
+    void read_body();
 
     /**
      * \brief Sets the header content that was sent.
@@ -66,6 +65,7 @@ private:
      * \param request_header The web_request object has a vector of headers that are set here.
      */
     static void header_helper(std::string& header, web_request& request_header);
+    void call_function_write_response();
 #ifdef OPEN_SSL
     void do_handshake();
     void ssl_shutdown(const asio::error_code& ec);
@@ -73,17 +73,21 @@ private:
 
     asio::streambuf _socket_buffer;
     std::string _response_string;
+    long _body_length;
+    web_request _request_header{};
 };
 
 #ifdef OPEN_SSL
 inline connection::connection(asio::ssl::stream<asio::ip::tcp::socket> socket)
-    : _socket(std::move(socket))
+    : _socket(std::move(socket)),
+      _body_length(-1)
 {
     do_handshake();
 }
 #else
 inline connection::connection(asio::ip::tcp::socket socket)
-    : _socket(std::move(socket))
+    : _socket(std::move(socket)),
+      _body_length(-1)
 {
     read_header();
 }
@@ -104,35 +108,14 @@ inline void connection::read_header()
                         length_read);
                     _socket_buffer.consume(length_read);
 
-                    web_request request_header{};
-                    header_helper(header, request_header);
+                    header_helper(header, _request_header);
 
-                    std::size_t length = 0;
-                    if (request_header.header_values.find("Content-Length") != request_header.header_values.end())
+                    if (_request_header.header_values.find("Content-Length") != _request_header.header_values.end())
                     {
-                        length = std::stol(request_header.header_values["Content-Length"]);
+                        _body_length = std::stol(_request_header.header_values["Content-Length"]);
                     }
 
-                    read_body(length, request_header);
-                    web_response response;
-                    response.protocol = request_header.protocol;
-                    response.version = request_header.version;
-                    response.host = request_header.header_values["Host"];
-                    done_reading_function(request_header, response);
-                    _response_string = response.to_string();
-                    asio::async_write(_socket, asio::buffer(_response_string, _response_string.length()),
-                        [&](const std::error_code ec_write, const std::size_t bytes_written)
-                        {
-                            if (ec_write || bytes_written != _response_string.length())
-                                std::cerr << "[connection] Error while replying: " << ec.message() << std::endl;
-#ifdef OPEN_SSL
-                            _socket.lowest_layer().cancel();
-                            _socket.async_shutdown(std::bind(&connection::ssl_shutdown, this->shared_from_this(), std::placeholders::_1));
-#else
-                            _socket.close();
-#endif
-                            close_me = true;
-                        });
+                    read_body();
                 }   
             }
             else
@@ -140,7 +123,7 @@ inline void connection::read_header()
                 std::cerr << "[connection] Error: " << ec.message() << std::endl;
 #ifdef OPEN_SSL
                 _socket.lowest_layer().cancel();
-                _socket.async_shutdown(std::bind(&connection::ssl_shutdown, this->shared_from_this(), std::placeholders::_1));
+                _socket.async_shutdown([&](const asio::error_code& err_c) { this->ssl_shutdown(err_c); });
 #else
                 _socket.close();
 #endif
@@ -149,15 +132,24 @@ inline void connection::read_header()
         });
 }
 
-inline void connection::read_body(const std::size_t& body_length, web_request& request_header) const
+inline void connection::read_body()
 {
-    if (body_length > 0)
+    if (_body_length > 0)
     {
-        const auto body = std::string(
-            asio::buffer_cast<const char*>(_socket_buffer.data()),
-            body_length);
+        async_read_until(_socket, _socket_buffer, "}",
+            [&](const std::error_code ec, const std::size_t length_read)
+            {
+                const auto body = std::string(
+                    asio::buffer_cast<const char*>(_socket_buffer.data()),
+                    _body_length);
 
-        request_header.body = body;
+                _request_header.body = body;
+                call_function_write_response();
+            });
+    }
+    else
+    {
+        call_function_write_response();
     }
 }
 
@@ -197,6 +189,29 @@ inline void connection::header_helper(std::string& header, web_request& request_
 
         request_header.header_values[key] = value;
     }
+}
+
+inline void connection::call_function_write_response()
+{
+    web_response response;
+    response.protocol = _request_header.protocol;
+    response.version = _request_header.version;
+    response.host = _request_header.header_values["Host"];
+    done_reading_function(_request_header, response);
+    _response_string = response.to_string();
+    async_write(_socket, asio::buffer(_response_string, _response_string.length()),
+        [&](const std::error_code ec_write, const std::size_t bytes_written)
+        {
+            if (ec_write || bytes_written != _response_string.length())
+                std::cerr << "[connection] Error while replying: " << ec_write.message() << std::endl;
+#ifdef OPEN_SSL
+            _socket.lowest_layer().cancel();
+            _socket.async_shutdown([&](const asio::error_code& err_c) { this->ssl_shutdown(err_c); });
+#else
+            _socket.close();
+#endif
+            close_me = true;
+        });
 }
 
 #ifdef OPEN_SSL
