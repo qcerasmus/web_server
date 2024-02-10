@@ -16,6 +16,7 @@ asio - This will be downloaded and included in the first build.
 
 performance_tester
 ------------------
+Important note, this performance tester only works without SSL.
 The performance tester was written to get a rough idea of how fast the web_server is.
 It spawns 16 threads which all connect to the root path of the server and get a response.
 The time it takes from connection to disconnection is added to a vector
