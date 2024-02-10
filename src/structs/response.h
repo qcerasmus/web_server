@@ -1,5 +1,6 @@
 #pragma once
 
+#include <string>
 /**
  * \brief This struct is mostly set by the end user to send a response.
  * We default the status_code to 404 and the status to "Not Found".
@@ -17,12 +18,9 @@ struct web_response
 
     inline std::string to_string()
     {
-        std::string response = protocol + "/" + version + " " + std::to_string(status_code) + 
-            " " + status;
-        response += "\r\nServer: " + host +
-            "\r\nContent-Type: " + content_type + 
-            "\r\nContent-Length: " + std::to_string(body.length()) +
-            "\r\n\r\n" + body;
+        std::string response = protocol + "/" + version + " " + std::to_string(status_code) + " " + status;
+        response += "\r\nServer: " + host + "\r\nContent-Type: " + content_type +
+                    "\r\nContent-Length: " + std::to_string(body.length()) + "\r\n\r\n" + body;
 
         return response;
     }

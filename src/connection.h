@@ -13,7 +13,7 @@
  */
 class connection : public std::enable_shared_from_this<connection>
 {
-public:
+  public:
     /**
      * \brief This class moves the socket locally and is responsible to read and write to it.
      * \param socket the socket is moved to this class
@@ -23,31 +23,31 @@ public:
 #else
     connection(asio::ip::tcp::socket socket);
 #endif
-    
-    connection(const connection& c) = delete;
-    connection(const connection&& c) = delete;
-    connection& operator=(const connection& other) = delete;
-    connection& operator=(const connection&& other) = delete;
+
+    connection(const connection &c) = delete;
+    connection(const connection &&c) = delete;
+    connection &operator=(const connection &other) = delete;
+    connection &operator=(const connection &&other) = delete;
     ~connection() = default;
 
     /**
      * \brief After the request has been read, we call this function which is set by the web_server class.
      * This is to allow the server to call a function set by the end user.
      */
-    std::function<void(web_request&, web_response&)> done_reading_function;
+    std::function<void(web_request &, web_response &)> done_reading_function;
     /**
      * \brief This will be set to true so that the connection can be deleted from the web_server class.
      */
     bool close_me = false;
 
-protected:
+  protected:
 #ifdef OPEN_SSL
     asio::ssl::stream<asio::ip::tcp::socket> _socket;
 #else
     asio::ip::tcp::socket _socket;
 #endif
 
-private:
+  private:
     /**
      * \brief This is the first function that is called to get the request header.
      * It happens directly after a connection is established.
@@ -64,11 +64,11 @@ private:
      * \param header The string of headers that was sent from the client.
      * \param request_header The web_request object has a vector of headers that are set here.
      */
-    static void header_helper(std::string& header, web_request& request_header);
+    static void header_helper(std::string &header, web_request &request_header);
     void call_function_write_response();
 #ifdef OPEN_SSL
     void do_handshake();
-    void ssl_shutdown(const asio::error_code& ec);
+    void ssl_shutdown(const asio::error_code &ec);
 #endif
 
     asio::streambuf _socket_buffer;
@@ -79,15 +79,12 @@ private:
 
 #ifdef OPEN_SSL
 inline connection::connection(asio::ssl::stream<asio::ip::tcp::socket> socket)
-    : _socket(std::move(socket)),
-      _body_length(-1)
+    : _socket(std::move(socket)), _body_length(-1)
 {
     do_handshake();
 }
 #else
-inline connection::connection(asio::ip::tcp::socket socket)
-    : _socket(std::move(socket)),
-      _body_length(-1)
+inline connection::connection(asio::ip::tcp::socket socket) : _socket(std::move(socket)), _body_length(-1)
 {
     read_header();
 }
@@ -98,14 +95,12 @@ inline void connection::read_header()
     async_read_until(_socket, _socket_buffer, "\r\n\r\n",
         [&](const std::error_code ec, const std::size_t length_read)
         {
-            //We have read some data.
+            // We have read some data.
             if (!ec)
             {
                 if (length_read != 0)
                 {
-                    auto header = std::string(
-                        asio::buffer_cast<const char*>(_socket_buffer.data()),
-                        length_read);
+                    auto header = std::string(asio::buffer_cast<const char *>(_socket_buffer.data()), length_read);
                     _socket_buffer.consume(length_read);
 
                     header_helper(header, _request_header);
@@ -116,14 +111,14 @@ inline void connection::read_header()
                     }
 
                     read_body();
-                }   
+                }
             }
             else
             {
                 std::cerr << "[connection] Error: " << ec.message() << std::endl;
 #ifdef OPEN_SSL
                 _socket.lowest_layer().cancel();
-                _socket.async_shutdown([&](const asio::error_code& err_c) { this->ssl_shutdown(err_c); });
+                _socket.async_shutdown([&](const asio::error_code &err_c) { this->ssl_shutdown(err_c); });
 #else
                 _socket.close();
 #endif
@@ -139,9 +134,7 @@ inline void connection::read_body()
         async_read_until(_socket, _socket_buffer, "}",
             [&](const std::error_code ec, const std::size_t length_read)
             {
-                const auto body = std::string(
-                    asio::buffer_cast<const char*>(_socket_buffer.data()),
-                    _body_length);
+                const auto body = std::string(asio::buffer_cast<const char *>(_socket_buffer.data()), _body_length);
 
                 _request_header.body = body;
                 call_function_write_response();
@@ -153,7 +146,7 @@ inline void connection::read_body()
     }
 }
 
-inline void connection::header_helper(std::string& header, web_request& request_header)
+inline void connection::header_helper(std::string &header, web_request &request_header)
 {
     auto sub_position = header.find(' ');
     const auto temp_header = header.substr(0, sub_position);
@@ -184,7 +177,7 @@ inline void connection::header_helper(std::string& header, web_request& request_
             break;
         header = header.substr(key_end_position + 2);
         const auto value_end_position = header.find("\r\n");
-        const auto value = header.substr(0, value_end_position); //this could be an issue...
+        const auto value = header.substr(0, value_end_position); // this could be an issue...
         header = header.substr(value_end_position + 2);
 
         request_header.header_values[key] = value;
@@ -204,12 +197,6 @@ inline void connection::call_function_write_response()
         {
             if (ec_write || bytes_written != _response_string.length())
                 std::cerr << "[connection] Error while replying: " << ec_write.message() << std::endl;
-#ifdef OPEN_SSL
-            _socket.lowest_layer().cancel();
-            _socket.async_shutdown([&](const asio::error_code& err_c) { this->ssl_shutdown(err_c); });
-#else
-            _socket.close();
-#endif
             close_me = true;
         });
 }
@@ -218,7 +205,7 @@ inline void connection::call_function_write_response()
 inline void connection::do_handshake()
 {
     _socket.async_handshake(asio::ssl::stream_base::server,
-        [this](const asio::error_code& error)
+        [this](const asio::error_code &error)
         {
             if (!error)
             {
@@ -231,7 +218,7 @@ inline void connection::do_handshake()
         });
 }
 
-inline void connection::ssl_shutdown(const asio::error_code& ec)
+inline void connection::ssl_shutdown(const asio::error_code &ec)
 {
     if (ec && ec != asio::error::eof)
         std::cout << ec.message() << std::endl;
@@ -240,6 +227,5 @@ inline void connection::ssl_shutdown(const asio::error_code& ec)
     _socket.lowest_layer().close(ec2);
     if (ec2)
         std::cout << ec2.message() << std::endl;
-    
 }
 #endif

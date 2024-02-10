@@ -1,0 +1,17 @@
+[
+{
+  "directory": "/mnt/ProgrammingDrive/source/web_server/build",
+  "command": "/usr/bin/c++ -DASIO_STANDALONE -I/mnt/ProgrammingDrive/source/web_server/third_party -I/mnt/ProgrammingDrive/source/web_server/third_party/asio/asio/include -I/mnt/ProgrammingDrive/source/web_server/src -std=gnu++17 -o CMakeFiles/web_server.dir/main.cpp.o -c /mnt/ProgrammingDrive/source/web_server/main.cpp",
+  "file": "/mnt/ProgrammingDrive/source/web_server/main.cpp"
+},
+{
+  "directory": "/mnt/ProgrammingDrive/source/web_server/build/performance_tester",
+  "command": "/usr/bin/c++ -DASIO_STANDALONE -I/mnt/ProgrammingDrive/source/web_server/third_party -I/mnt/ProgrammingDrive/source/web_server/third_party/asio/asio/include -I/mnt/ProgrammingDrive/source/web_server/src -std=gnu++17 -o CMakeFiles/performance_tester.dir/client.cpp.o -c /mnt/ProgrammingDrive/source/web_server/performance_tester/client.cpp",
+  "file": "/mnt/ProgrammingDrive/source/web_server/performance_tester/client.cpp"
+},
+{
+  "directory": "/mnt/ProgrammingDrive/source/web_server/build/performance_tester",
+  "command": "/usr/bin/c++ -DASIO_STANDALONE -I/mnt/ProgrammingDrive/source/web_server/third_party -I/mnt/ProgrammingDrive/source/web_server/third_party/asio/asio/include -I/mnt/ProgrammingDrive/source/web_server/src -std=gnu++17 -o CMakeFiles/performance_tester.dir/main.cpp.o -c /mnt/ProgrammingDrive/source/web_server/performance_tester/main.cpp",
+  "file": "/mnt/ProgrammingDrive/source/web_server/performance_tester/main.cpp"
+}
+]

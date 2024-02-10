@@ -1,8 +1,8 @@
 #pragma once
 
+#include <iostream>
 #include <map>
 #include <string>
-#include <iostream>
 
 #include "../enums/method.h"
 
@@ -19,15 +19,15 @@ struct web_request
 
     std::string body;
 
-    friend std::ostream& operator<< (std::ostream& os, web_request& request_header)
+    friend std::ostream &operator<<(std::ostream &os, web_request &request_header)
     {
-        os << "Method: " << methods::method_to_string(request_header.method) << std::endl <<
-            "URL: " << request_header.url << std::endl <<
-            "PROTOCOL: " << request_header.protocol << std::endl <<
-            "VERSION: " << request_header.version << std::endl << 
-            "Extra headers: " << std::endl;
+        os << "Method: " << methods::method_to_string(request_header.method) << std::endl
+           << "URL: " << request_header.url << std::endl
+           << "PROTOCOL: " << request_header.protocol << std::endl
+           << "VERSION: " << request_header.version << std::endl
+           << "Extra headers: " << std::endl;
 
-        for (const auto& header_value : request_header.header_values)
+        for (const auto &header_value : request_header.header_values)
         {
             os << "\t" << header_value.first << ": " << header_value.second << std::endl;
         }

@@ -8,16 +8,16 @@
  */
 class client
 {
-public:
+  public:
     /**
      * \brief Connects to the ip-address and port and does a GET request.
      * \param ip_address The ip-address to connect to.
      * \param port The port the server is listening on. Usually port 80.
      */
-    client(const std::string& ip_address, unsigned short port = 80);
+    client(const std::string &ip_address, unsigned short port = 80);
     ~client() = default;
 
-private:
+  private:
     /**
      * \brief Writes the GET request to the socket.
      */
@@ -29,4 +29,3 @@ private:
     std::string _request;
     bool still_running = true;
 };
-

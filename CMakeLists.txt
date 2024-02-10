@@ -19,6 +19,7 @@ project(web_server)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 find_package(OpenSSL)
 
@@ -44,4 +45,17 @@ if (OPENSSL_FOUND)
     message("OpenSSL_LIBRARIES: ${OPENSSL_LIBRARIES}")
     include_directories(${OPENSSL_INCLUDE_DIR})
     target_link_libraries(web_server ${OPENSSL_LIBRARIES})
+  if (NOT EXISTS ${CMAKE_CURRENT_BINARY_DIR}/key.pem)
+   message("Generating ssl keys for secure sockets")
+   execute_process(COMMAND openssl req -x509 -newkey rsa:4096 -keyout ${CMAKE_CURRENT_BINARY_DIR}/key.pem -out ${CMAKE_CURRENT_BINARY_DIR}/cert.pem -sha256 -days 3650 -nodes -subj "/C=XX/ST=StateName/L=CityName/O=CompanyName/OU=CompanySectionName/CN=CommonMNameOrHostName"
+     WORKING_DIRECTORY ${OPENSSL_INCLUDE_DIR}/../bin
+     RESULT_VARIABLE CREATE_KEYS)
+   if (NOT CREATE_KEYS EQUAL "0")
+     message (FATAL_ERROR "openssl couldn't create they keys... ${CREATE_KEYS}")
+    endif()
+  endif()
 endif (OPENSSL_FOUND)
+
+#This is to make my life easier... Copy the compile_commands.json file into the main directory for my vim LSP server
+execute_process(COMMAND cp compile_commands.json ..)
+
