@@ -138,11 +138,13 @@ inline void connection::read_body()
 
                 _request_header.body = body;
                 call_function_write_response();
+                close_me = true;
             });
     }
     else
     {
         call_function_write_response();
+        close_me = true;
     }
 }
 

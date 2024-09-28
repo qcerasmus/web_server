@@ -172,7 +172,7 @@ inline bool web_server::start()
                                                    {
                                                        if (connection)
                                                        {
-                                                           std::cout << "Closing the connection?\n";
+                                                           std::cout << "Closing the connection? " << connection->close_me << '\n';
                                                            return connection->close_me;
                                                        }
                                                        return false;
